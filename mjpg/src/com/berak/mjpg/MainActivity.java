@@ -66,7 +66,9 @@ public class MainActivity extends Activity {
 		Log.e("MJPG", "opencv onboard : " + r);
 
 		task = new MjpgTask();
-		task.execute("http://82.135.240.133/mjpg/video.mjpg?resolution=352x288");
+		//task.execute("http://tree.dip.jp/nphMotionJpeg?Resolution=320x240::1;Quality=Motion::1;data=v.mjpg");
+		task.execute("http://77.221.39.163/mjpg/video.mjpg?resolution=352x288");
+		
 	}
 
 	@Override
@@ -77,7 +79,7 @@ public class MainActivity extends Activity {
 	}
 
 	private class MjpgTask extends AsyncTask<String, Integer, Long> {
-		byte[] arr = new byte[100000];
+		byte[] arr = new byte[300000];
 		boolean doRun = false;
 
 		protected Long doInBackground(String... urls) {
@@ -86,7 +88,7 @@ public class MainActivity extends Activity {
 				URL url = new URL(urls[0]);
 				HttpURLConnection con = (HttpURLConnection) url.openConnection();
 				InputStream in = con.getInputStream();
-				doRun = in.available() > 0;
+				doRun = (in != null);
 				while (doRun) {
 					int i = 0;
 					// check for jpeg soi sequence: ff d8
@@ -100,13 +102,13 @@ public class MainActivity extends Activity {
 					}
 					if (i > 999) {
 						Log.e("MJPG", "bad head!");
-						continue;
+						break;
 					}
 					arr[0] = (byte) 0xff;
 					arr[1] = (byte) 0xd8;
 					i = 2;
 					// check for jpeg eoi sequence: ff d9
-					for (; i < 100000; i++) {
+					for (; i < 300000; i++) {
 						int b = in.read();
 						arr[i] = (byte) b;
 						if (b == 0xff) {
