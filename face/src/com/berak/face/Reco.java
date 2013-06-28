@@ -63,6 +63,5 @@ public class Reco {
 				rec.add(new Record(m,person));
 			}
 		}
-	}
-	
+	}	
 }
