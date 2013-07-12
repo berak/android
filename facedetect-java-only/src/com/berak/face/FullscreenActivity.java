@@ -1,6 +1,7 @@
 package com.berak.face;
 
 import android.app.AlertDialog;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.view.MotionEvent;
 import android.view.View;
@@ -34,16 +35,14 @@ import org.opencv.imgproc.Imgproc;
 import org.opencv.objdetect.CascadeClassifier;
 
 
-public class FullscreenActivity extends Activity implements CvCameraViewListener2,OnTouchListener {
+public class FullscreenActivity extends Activity implements CvCameraViewListener2 {
     private static final Scalar FACE_RECT_COLOR = new Scalar(0,200,0);
     private double mAbsoluteFaceSize = 100;
     String TAG = "face";
     String folder = Environment.getExternalStorageDirectory().getPath() + "/ocv";
     CameraBridgeViewBase mOpenCvCameraView;
     CascadeClassifier mCascade;
-    Mat mRgba,mGray,mCur;
-    Reco reco = new Reco();
-    boolean inEdit = false;
+    Mat mRgba,mGray;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -52,7 +51,6 @@ public class FullscreenActivity extends Activity implements CvCameraViewListener
 
         mOpenCvCameraView = (CameraBridgeViewBase) findViewById(R.id.face_activity_surface_view);
         mOpenCvCameraView.setCvCameraViewListener(this);
-        mOpenCvCameraView.setOnTouchListener(this);
     }
 
     private BaseLoaderCallback  mLoaderCallback = new BaseLoaderCallback(this) {
@@ -93,10 +91,32 @@ public class FullscreenActivity extends Activity implements CvCameraViewListener
     @Override
     public void onCameraViewStarted(int width, int height) {
 		mGray = new Mat();
-		mCascade = new CascadeClassifier(folder + "/lbpcascade_frontalface.xml");
-		if ( mCascade.empty() )
-		   copyFromResource(folder,"lbpcascade_frontalface.xml",R.raw.lbpcascade_frontalface);
-		reco.load(folder + "/face");
+        try {
+            // load cascade file from application resources
+            InputStream is = getResources().openRawResource(R.raw.lbpcascade_frontalface);
+            File cascadeDir = getDir("cascade", Context.MODE_PRIVATE);
+            File cascadeFile = new File(cascadeDir, "lbpcascade_frontalface.xml");
+            FileOutputStream os = new FileOutputStream(cascadeFile);
+
+            byte[] buffer = new byte[4096];
+            int bytesRead;
+            while ((bytesRead = is.read(buffer)) != -1) {
+                os.write(buffer, 0, bytesRead);
+            }
+            is.close();
+            os.close();
+
+            mCascade = new CascadeClassifier(cascadeFile.getAbsolutePath());
+            if (mCascade.empty()) {
+                Log.e(TAG, "Failed to load cascade classifier");
+                mCascade = null;
+            } else {
+                Log.i(TAG, "Loaded cascade classifier from " + cascadeFile.getAbsolutePath());
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+            Log.e(TAG, "Failed to load cascade. Exception thrown: " + e);
+        }
     }
 
     @Override
@@ -108,10 +128,9 @@ public class FullscreenActivity extends Activity implements CvCameraViewListener
         mRgba = inputFrame.rgba();
         Imgproc.cvtColor(mRgba, mGray, Imgproc.COLOR_RGBA2GRAY);
         MatOfRect faces = new MatOfRect();
-        if (mCascade != null && (! inEdit)) {
+        if (mCascade != null ) {
             mCascade.detectMultiScale(mGray, faces, 1.1, 2, 2, 
                             new Size(mAbsoluteFaceSize, mAbsoluteFaceSize), new Size());
-            mCur = null;
             Rect[] facesArray = faces.toArray();
             for (int i = 0; i < facesArray.length; i++) {
                 Rect found = facesArray[i];
@@ -124,53 +143,10 @@ public class FullscreenActivity extends Activity implements CvCameraViewListener
                 if ( found.x+found.width >= mRgba.cols() ) found.x=mRgba.cols()-found.width-1;
                 if ( found.y+found.height >= mRgba.rows() ) found.y=mRgba.rows()-found.height-1;
                 Core.rectangle(mRgba, found.tl(), found.br(), FACE_RECT_COLOR, 3);
-
-                mCur = new Mat();
-                Imgproc.resize(mGray.submat(found), mCur, new Size(90,90));
-                Imgproc.equalizeHist(mCur, mCur);
-                
-                Reco.Record best = reco.new Record();
-                double d = reco.predict(mCur, best);
-                if ( (d < 5000) && (best.name!=null)) {
-                    String str = best.name + " : 0." + (int)(d*100);
-                    Core.putText(mRgba,str,new Point(100,60),Core.FONT_HERSHEY_PLAIN,3.3,new Scalar(0,0,200),3);                    
-                    Mat t = new Mat();
-                    Imgproc.cvtColor(best.img, t, Imgproc.COLOR_GRAY2RGBA);
-                    t.copyTo(mRgba.submat(0,90,0,90));
-                    break;
-                }
             }
         }
         return mRgba;
-    }
-
-    void showAlert( final Mat m ) {
-        inEdit=true;
-        AlertDialog.Builder alert = new AlertDialog.Builder(this);
-        alert.setTitle("Your Name Here");
-        final EditText input = new EditText(this);
-        alert.setView(input);    
-        alert.setPositiveButton("Ok", new DialogInterface.OnClickListener() {        
-            public void onClick(DialogInterface dialog, int whichButton) {
-                String name = input.getText().toString();
-                if ( (name == null) || (name == "") )
-                    return ;
-                if ( name.endsWith("\n") )
-                    name.replace("\n", "");
-                reco.addRec(m, name, folder + "/face");
-                inEdit=false;
-            }
-        });
-        
-        alert.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
-            public void onClick(DialogInterface dialog, int whichButton) {
-                inEdit=false;
-            }
-        });
-        alert.show();
-    }
-    
-    
+    }   
     private void copyFromResource( String dir, String fname, int id ) {
         try {
             // load cascade file from application resources
@@ -192,14 +168,5 @@ public class FullscreenActivity extends Activity implements CvCameraViewListener
             e.printStackTrace();
             Log.e(TAG, "Failed to load cascade. Exception thrown: " + e);
         }
-    }
-
-    @Override
-    public boolean onTouch(View v, MotionEvent event) {
-        if ((mCur != null) && (!inEdit)) {
-            showAlert(mCur);
-            return true;
-        }
-        return false;
     }
 }

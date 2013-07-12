@@ -7,8 +7,8 @@ int id LinearLayout1 0x7f040003
 int id any 0x7f040000
 int id back 0x7f040001
 int id front 0x7f040002
-int id hello1 0x7f040005
 int id imageView1 0x7f040004
+int id item1 0x7f040005
 int layout activity_main 0x7f030000
 int menu main 0x7f080000
 int string action_settings 0x7f060001
