@@ -12,7 +12,7 @@ various projects
    
    (added some adatpive bg-removal)
    
- * [heart](https://github.com/berak/android/raw/master/heart/bin/heart.apk)
+ * [heart](https://github.com/berak/android/raw/master/Heart/bin/Heart.apk)
  
    attempt at optical heartbeat recognition, 
    point some skin at the green rect (adjustable by touch) and *hold still for a long time*
