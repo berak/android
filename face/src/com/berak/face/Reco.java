@@ -56,7 +56,8 @@ public class Reco {
 		String[] subNote = node.list();
 		if ( subNote==null ) return;
 		for(String person : subNote) {
-			File subDir = new File(node, person);		
+			File subDir = new File(node, person);
+			if ( ! subDir.isDirectory() ) continue;
 			File[] pics = subDir.listFiles();
 			for(File f : pics) {
 				Mat m = Highgui.imread(f.getAbsolutePath(),0);

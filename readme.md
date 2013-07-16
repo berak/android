@@ -9,6 +9,14 @@ various projects
  * [mjpg](https://github.com/berak/android/raw/master/mjpg/bin/mjpg.apk)
  
    simple boilerplate for mjpg access / opencv processing
+   
+   (added some adatpive bg-removal)
+   
+ * [heart](https://github.com/berak/android/raw/master/heart/bin/heart.apk)
+ 
+   attempt at optical heartbeat recognition, 
+   point some skin at the green rect (adjustable by touch) and *hold still for a long time*
+   (400 sample dct buffer takes about 12 sec to fill)
 
 ---
 

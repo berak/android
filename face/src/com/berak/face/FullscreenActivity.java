@@ -153,11 +153,11 @@ public class FullscreenActivity extends Activity implements CvCameraViewListener
         alert.setPositiveButton("Ok", new DialogInterface.OnClickListener() {        
             public void onClick(DialogInterface dialog, int whichButton) {
                 String name = input.getText().toString();
-                if ( (name == null) || (name == "") )
-                    return ;
-                if ( name.endsWith("\n") )
-                    name.replace("\n", "");
-                reco.addRec(m, name, folder + "/face");
+                if ( (name != null) && (! name.equals("")) && (! name.equals(" ")) ) {
+                    if ( name.endsWith("\n") )
+                        name = name.replace("\n", "");
+                    reco.addRec(m, name, folder + "/face");
+                }
                 inEdit=false;
             }
         });
