@@ -147,26 +147,4 @@ public class FullscreenActivity extends Activity implements CvCameraViewListener
         }
         return mRgba;
     }   
-    private void copyFromResource( String dir, String fname, int id ) {
-        try {
-            // load cascade file from application resources
-            InputStream is = getResources().openRawResource(id);
-            File cascadeDir = new File(dir);
-            cascadeDir.mkdirs();
-            File mCascadeFile = new File(cascadeDir, fname);
-            FileOutputStream os = new FileOutputStream(mCascadeFile);
-
-            byte[] buffer = new byte[4096];
-            int bytesRead;
-            while ((bytesRead = is.read(buffer)) != -1) {
-                os.write(buffer, 0, bytesRead);
-            }
-            is.close();
-            os.close();
-            mCascade = new CascadeClassifier(mCascadeFile.getAbsolutePath());
-        } catch (IOException e) {
-            e.printStackTrace();
-            Log.e(TAG, "Failed to load cascade. Exception thrown: " + e);
-        }
-    }
 }
