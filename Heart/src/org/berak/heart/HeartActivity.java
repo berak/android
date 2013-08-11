@@ -115,7 +115,7 @@ class Processor {
 	   return  (n-u) * a / n + u * b / n;
 	}
 	static double bin2bpm(int b, double timeStep ) {
-	    return ( 60.0 * b ) / ( timeStep );
+	    return 0.5 * ( 60.0 * b ) / ( timeStep );
 	}
 
     
