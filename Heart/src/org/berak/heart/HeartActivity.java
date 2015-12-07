@@ -12,7 +12,6 @@ import org.opencv.core.Mat;
 import org.opencv.core.Point;
 import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
-import org.opencv.imgproc.Imgproc;
 import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.android.CameraBridgeViewBase.CvCameraViewListener2;
 
@@ -84,10 +83,10 @@ class Ring {
 
 
 class Processor {
-	static final int rectsize=40;
+	static final int rectsize=80;
 	static final int roi_size=64;
 	Rect region = new Rect(440,100,rectsize,rectsize);
-    Rect region_2 = new Rect(0,0,rectsize,rectsize);
+//    Rect region_2 = new Rect(0,0,rectsize,rectsize);
     Ring ring = new Ring(128,400);
     Mat  peak = new Mat(1,64,CvType.CV_64F);
     double mv = 0;
@@ -149,11 +148,11 @@ class Processor {
         long P0 = System.nanoTime();
     	try {
     		Mat s1 = img.submat(region);
-	    	Mat s2 = img.submat(region_2);
+	    	//Mat s2 = img.submat(region_2);
 	    	
 	    	Scalar mean1 = Core.mean(s1);
-	    	Scalar mean2 = Core.mean(s2);    	
-	        double red = (double)(mean1.val[1]-mean2.val[1]); // green diff
+	    	//Scalar mean2 = Core.mean(s2);    	
+	        double red = (double)(mean1.val[1]);//-mean2.val[1]); // green diff
 	        ring.push(t1,red);
 
 	        double ts = 0.001*(double)dt;

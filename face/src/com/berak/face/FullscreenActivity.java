@@ -145,7 +145,7 @@ public class FullscreenActivity extends Activity implements CvCameraViewListener
     }
 
     void showAlert( final Mat m ) {
-        inEdit=true;
+        inEdit=true; // hmm, the local 'alert' forces me to have a global var that keeps me from starting it twice..
         AlertDialog.Builder alert = new AlertDialog.Builder(this);
         alert.setTitle("Your Name Here");
         final EditText input = new EditText(this);
