@@ -1,12 +1,13 @@
 package com.gyro;
 
 import android.app.Activity;
+import android.os.AsyncTask;
 import android.os.Bundle;
-import android.os.Environment;
+import android.text.method.DateTimeKeyListener;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.widget.EditText;
+import android.widget.DatePicker;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.graphics.Bitmap;
@@ -18,18 +19,21 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
-import android.location.Location;
-// import android.location.LocationManager;
-import android.location.LocationListener;
-import android.content.BroadcastReceiver;
-import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
 
-import java.io.FileNotFoundException;
-import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
+
+import org.apache.http.HttpResponse;
+import org.apache.http.NameValuePair;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.entity.UrlEncodedFormEntity;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.message.BasicNameValuePair;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 class GyroFrame {
 	public long timestamp;
@@ -44,14 +48,11 @@ class GyroFrame {
 public class GyroActivity extends Activity  implements SensorEventListener{
     ImageView drawingImageView;
     Canvas canvas;
-	final private String TAG = "Gyro";
 	private SensorManager mSensorManager;
 	private Sensor mSensor;
 	List<Sensor>   zensor;
 	List<MenuItem> mItems;
 	List<GyroFrame> frames;
-	boolean curve = true;
-	
 	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -90,14 +91,27 @@ public class GyroActivity extends Activity  implements SensorEventListener{
 	}
 
 	@Override
+	public void onPause() {
+		if (mSensor != null)
+			mSensorManager.unregisterListener(this);
+		mSensor = null;
+			
+		super.onPause();
+	}
+	
+	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
+		if (item.getTitle()=="Save") {
+			new Postit().start();
+			return true;
+		}
 		if ( mSensor != null )
 			mSensorManager.unregisterListener(this);
 		mSensor = null;
 
 		int id = item.getGroupId();
 		mSensor = zensor.get(id);
-		if ( mSensor == null )
+		if (mSensor == null)
 			return false;
 		
         boolean reg = mSensorManager.registerListener(this, mSensor, SensorManager.SENSOR_DELAY_UI);
@@ -105,14 +119,13 @@ public class GyroActivity extends Activity  implements SensorEventListener{
 		String txt = mSensor.getName() + " " + reg; 
 		ed.setText(txt);
 
+		frames.clear();
 		clear(Color.WHITE);
 
 		return super.onOptionsItemSelected(item);
 	}
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
-		// Inflate the menu; this adds items to the action bar if it is present.
-		//getMenuInflater().inflate(R.menu.main, menu);
 		mItems = new ArrayList<MenuItem>();
 		zensor = mSensorManager.getSensorList(Sensor.TYPE_ALL);
 		for ( int i=0; i<zensor.size(); i++ )
@@ -120,15 +133,15 @@ public class GyroActivity extends Activity  implements SensorEventListener{
 			Sensor s = zensor.get(i);
 			mItems.add( menu.add(s.getName()) );
 		}
+		mItems.add(menu.add("Save"));
 		return true;
 	}
 
 
 	@Override
 	public void onAccuracyChanged(Sensor arg0, int arg1) {
-		// TODO Auto-generated method stub
-		
 	}
+
 
 
 	@Override
@@ -140,16 +153,16 @@ public class GyroActivity extends Activity  implements SensorEventListener{
 		TextView ed = (TextView)findViewById(R.id.textView1);
 		ed.setText(z);	
 
-		long t = System.currentTimeMillis();
+		long t = //System.currentTimeMillis();
+		arg0.timestamp;
 		frames.add(new GyroFrame(t, arg0.values));
-
-		Log.w("GYRO", "f " + frames.size() + " t " + t + " " + z);
+		//Log.w("GYRO", "f " + frames.size() + " t " + t + " " + z);
 	    int [] colors = {Color.GREEN,Color.BLUE,Color.RED,Color.YELLOW,Color.MAGENTA,Color.CYAN,Color.LTGRAY,Color.DKGRAY};
 		float yScale = 15.0f;
-		int xScale = 98; // speed
+		int xScale = 20000000; // speed
 		int yOff = canvas.getHeight() / 2;
 		int x = (int)(t/xScale) % canvas.getWidth();
-		if (x >=0 || x >= canvas.getWidth()-2) {
+		if (x >= canvas.getWidth()-5) {
 			clear(Color.WHITE);
 		}
 		for ( int i = 0; i<arg0.values.length; i++ ) {
@@ -158,4 +171,33 @@ public class GyroActivity extends Activity  implements SensorEventListener{
 		}
 	}
 
+    private class Postit extends Thread {
+        public void run() {
+    		Log.w("GYRO", "f1 " + frames.size());
+        	if (frames.size() < 100)
+        		return;
+    	    String strdata =  "{" + mSensor.getName() + ":[";
+    	    for (int i=0; i<frames.size(); i++) {
+    	    	GyroFrame f = frames.get(i);
+    	    	strdata += "{" + f.timestamp + ":";
+    	    	for (int j=0; j<f.values.length; j++) {
+    	    		strdata += f.values[j] + ",";
+    	    	}
+    	    	strdata += "},";
+    	    }
+    	    strdata += "]}";
+    	    frames.clear();
+    	    try {
+        	    HttpClient httpclient = new DefaultHttpClient();
+        	    HttpPost httppost = new HttpPost("http://hook.io/berak/chili");
+    	        List<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>(2);
+    	        nameValuePairs.add(new BasicNameValuePair("who", "accel_" + (new Date())));
+    	        nameValuePairs.add(new BasicNameValuePair("set", strdata));
+    	        httppost.setEntity(new UrlEncodedFormEntity(nameValuePairs));
+    	        httpclient.execute(httppost);
+    	    } catch (Exception e) {
+    	    	Log.e("Gyro", e.toString());
+    	    }
+        }
+    }
 } // end of GyroMic class
