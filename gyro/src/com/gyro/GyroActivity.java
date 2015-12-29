@@ -112,6 +112,7 @@ public class GyroActivity extends Activity  implements SensorEventListener{
 		clear(Color.WHITE);
 		ts = 0;
         timeStamp = (new Date()).toString();
+        hasAlert=false;
 	}
 
 	@Override
@@ -161,16 +162,19 @@ public class GyroActivity extends Activity  implements SensorEventListener{
 
 	@Override
 	public void onRestart() {
-		new Handler().postDelayed(new Runnable() { 
-			   public void run() { openOptionsMenu();  }
-			}, 1000);
+		reset();
+	}
+	@Override
+	public void onResume() {
+		reset();
+		super.onResume();
 	}
 	@Override
 	public void onPause() {
 		if (mSensor != null)
 			mSensorManager.unregisterListener(this);
 		mSensor = null;
-			
+		reset();
 		super.onPause();
 	}
 	void cerr(String t,float[] v) {
@@ -375,16 +379,21 @@ public class GyroActivity extends Activity  implements SensorEventListener{
     		Log.w("GYRO", "got " + frames.size() + " frames");
         	if (frames.size() < 100)
         		return;
-    	    String strdata =  timeStamp + "\n" + mSensor.getName() + "\n";
+        	StringBuilder sb = new StringBuilder(timeStamp);
+        	sb.append("\n");
+        	sb.append(mSensor.getName());
+        	sb.append("\n");
     	    for (int i=0; i<frames.size(); i++) {
     	    	GyroFrame f = frames.get(i);
-    	    	strdata += "" + f.timestamp + ",";
+    	    	sb.append(f.timestamp);
+    	    	sb.append(",");
     	    	for (int j=0; j<f.values.length; j++) {
-    	    		strdata += f.values[j] + ",";
+    	    		sb.append(f.values[j]);
+    	    		sb.append(",");
     	    	}
-    	    	strdata += "\n";
+    	    	sb.append("\n");
     	    }
-    	    //frames.clear();
+    	    String strdata = sb.toString();
     	    try {
         		Log.w("GYRO", "starting post");
         	    HttpClient httpclient = new DefaultHttpClient();
