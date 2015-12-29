@@ -1,15 +1,20 @@
 package com.gyro;
 
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Handler;
 import android.text.method.DateTimeKeyListener;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.DatePicker;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -34,6 +39,7 @@ import org.apache.http.message.BasicNameValuePair;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+
 
 class GyroFrame {
 	public long timestamp;
@@ -91,6 +97,8 @@ public class GyroActivity extends Activity  implements SensorEventListener{
 	int xScale = 14000000; // speed
 	Ipol iplacc = new Ipol(6);
 	//ActivityRecognition act;
+	String tags="";
+	String timeStamp = "";
 	
 	static float eps(float f,float epsilon) {
 		return (Math.abs(f) > epsilon ? f : 0.0f);
@@ -103,6 +111,7 @@ public class GyroActivity extends Activity  implements SensorEventListener{
 		frames.clear();
 		clear(Color.WHITE);
 		ts = 0;
+        timeStamp = (new Date()).toString();
 	}
 
 	@Override
@@ -119,8 +128,14 @@ public class GyroActivity extends Activity  implements SensorEventListener{
 	    drawingImageView.setImageBitmap(bitmap);
 
 	    frames = new ArrayList<GyroFrame>();
+	    //toast("yelp!");
 	}
 
+	void clear(int c) {
+	    Paint paint = new Paint();
+	    paint.setColor(c);
+	    canvas.drawRect(new Rect(0,0,canvas.getWidth(),canvas.getHeight()), paint);
+	}
 	// circle
 	void circle(int x1, int y1, int r, int c) {
 	    Paint paint = new Paint();
@@ -143,12 +158,13 @@ public class GyroActivity extends Activity  implements SensorEventListener{
 	    canvas.drawLine(x1-w,y1-w,x1+w,y1+w, paint);
 	    canvas.drawLine(x1-w,y1+w,x1+w,y1-w, paint);
 	}
-	void clear(int c) {
-	    Paint paint = new Paint();
-	    paint.setColor(c);
-	    canvas.drawRect(new Rect(0,0,canvas.getWidth(),canvas.getHeight()), paint);
-	}
 
+	@Override
+	public void onRestart() {
+		new Handler().postDelayed(new Runnable() { 
+			   public void run() { openOptionsMenu();  }
+			}, 1000);
+	}
 	@Override
 	public void onPause() {
 		if (mSensor != null)
@@ -162,23 +178,32 @@ public class GyroActivity extends Activity  implements SensorEventListener{
 	}
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
+		Log.w("ITEM", " " + item.getOrder() + " " + item.getTitleCondensed());
 		if (item.getTitle()=="Save") {
-			new Postit().start();
+			showAlert();
 			return true;
 		}
 		if ( mSensor != null )
 			mSensorManager.unregisterListener(this);
 		mSensor = null;
 
-		int id = item.getGroupId();
+		int id=-1;
+		for (int i=0; i<zensor.size(); i++) {
+			if (item.getTitle().equals(zensor.get(i).getName())) {
+				id = i;
+				break;
+			}
+		}
 		mSensor = zensor.get(id);
 		if (mSensor == null)
 			return false;
 		
         boolean reg = mSensorManager.registerListener(this, mSensor, SensorManager.SENSOR_DELAY_UI);
 		TextView ed = (TextView)findViewById(R.id.textView1);
-		String txt = mSensor.getName() + " " + reg; 
-		ed.setText(txt);
+		String txt = mSensor.getName() + "\n"; 
+		tags += txt;
+		ed.setText(tags);
+		this.setTitle(mSensor.getName() +  " " + mSensor.getType());
 
 		reset();
 
@@ -192,6 +217,7 @@ public class GyroActivity extends Activity  implements SensorEventListener{
 		{
 			Sensor s = zensor.get(i);
 			mItems.add( menu.add(s.getName()) );
+			tags += s + "\n";
 		}
 		mItems.add(menu.add("Save"));
 		return true;
@@ -216,9 +242,9 @@ public class GyroActivity extends Activity  implements SensorEventListener{
 		iplacc.set(acc);
 		acc = iplacc.val();
 		
-		cerr("g ", gravity);
-		cerr("a ", arg0.values);
-		cerr("l ", acc);
+		//cerr("g ", gravity);
+		//cerr("a ", arg0.values);
+		//cerr("l ", acc);
 		long t = //System.currentTimeMillis();
 		arg0.timestamp;
 		long dt = t - ts;
@@ -241,7 +267,7 @@ public class GyroActivity extends Activity  implements SensorEventListener{
 			}*/
 		}
 		TextView ed = (TextView)findViewById(R.id.textView1);
-		ed.setText(z);	
+		ed.setText(tags + z);	
 		
 		//Log.w("GYRO", "f " + frames.size() + " t " + t + " " + z);
 	    int [] colors = {Color.GREEN,Color.BLUE,Color.RED,Color.YELLOW,Color.MAGENTA,Color.CYAN,Color.LTGRAY,Color.DKGRAY};
@@ -250,7 +276,7 @@ public class GyroActivity extends Activity  implements SensorEventListener{
 		if (x >= canvas.getWidth()-20) {
 			clear(Color.WHITE);
 		}
-		for ( int i = 0; i<acc.length; i++ ) {
+		for (int i = 0; i<acc.length; i++) {
 			int y = yOff + (int)(acc[i] * yScale) ;
 			circle(x, y-i*40, 3, colors[i%colors.length]);
 			cross(x, yOff-i*40 + (int)(vel[i] * 6*yScale), colors[(i)%colors.length]);
@@ -277,6 +303,7 @@ public class GyroActivity extends Activity  implements SensorEventListener{
 			circle(x, y-i*40, 3, colors[i%colors.length]);
 		}
 	}
+
 	public void linear(float[] values) {
 	    final float alpha = 0.6f;
 
@@ -296,33 +323,80 @@ public class GyroActivity extends Activity  implements SensorEventListener{
     		pos[i] += (vel[i]) * dt;
     		vel[i] *= 0.88f;
     	}
-		Log.w("Gyro","dt " + dt + " " + pos[0] + " " + vel[0]);
+		//Log.w("Gyro","dt " + dt + " " + pos[0] + " " + vel[0]);
 	}
 
+	boolean hasAlert=false;
+    void showAlert() {
+    	Log.w("ALERT", "" + hasAlert);
+    	if (hasAlert) return;
+    	hasAlert = true;
+        AlertDialog.Builder alert = new AlertDialog.Builder(this);
+        alert.setTitle("Your Name Here");
+        final EditText input = new EditText(this);
+        alert.setView(input);    
+        alert.setPositiveButton("Ok", new DialogInterface.OnClickListener() {        
+            public void onClick(DialogInterface dialog, int whichButton) {
+                String name = input.getText().toString();
+                if ( (name != null) && (! name.equals("")) && (! name.equals(" ")) ) {
+                    if ( name.endsWith("\n") )
+                    	name = name.replace("\n", "");
+                	Log.w("ALERT", "start " + name);
+        			new Postit(name).start();
+                	Log.w("ALERT", "finish " + name);
+        	        //toast(ds);
+        			hasAlert = false;
+                }
+            }
+        });       
+        alert.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int whichButton) {
+    			hasAlert = false;
+            }
+        });
+        alert.show();
+    }
+
+    void toast(String s) {
+        new AlertDialog.Builder(this)
+               .setTitle(s)
+               //.setView(input);    
+               .setPositiveButton("Ok",null)        
+               .show();    	
+    }
+
     private class Postit extends Thread {
+    	String token;
+    	public Postit(String name) {
+    		token=name;
+    	}
         public void run() {
-    		Log.w("GYRO", "f1 " + frames.size());
+        	if (token.equals("")) return;
+    		Log.w("GYRO", "got " + frames.size() + " frames");
         	if (frames.size() < 100)
         		return;
-    	    String strdata =  "{" + mSensor.getName() + ":[";
+    	    String strdata =  timeStamp + "\n" + mSensor.getName() + "\n";
     	    for (int i=0; i<frames.size(); i++) {
     	    	GyroFrame f = frames.get(i);
-    	    	strdata += "{" + f.timestamp + ":";
+    	    	strdata += "" + f.timestamp + ",";
     	    	for (int j=0; j<f.values.length; j++) {
     	    		strdata += f.values[j] + ",";
     	    	}
-    	    	strdata += "},";
+    	    	strdata += "\n";
     	    }
-    	    strdata += "]}";
-    	    frames.clear();
+    	    //frames.clear();
     	    try {
+        		Log.w("GYRO", "starting post");
         	    HttpClient httpclient = new DefaultHttpClient();
-        	    HttpPost httppost = new HttpPost("http://hook.io/berak/chili");
+        	    HttpPost httppost = new HttpPost("http://rowrow-data.appspot.com/sensor");
     	        List<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>(2);
-    	        nameValuePairs.add(new BasicNameValuePair("who", "accel_" + (new Date())));
-    	        nameValuePairs.add(new BasicNameValuePair("set", strdata));
+    	        nameValuePairs.add(new BasicNameValuePair("who", token));
+    	        nameValuePairs.add(new BasicNameValuePair("data", strdata));
     	        httppost.setEntity(new UrlEncodedFormEntity(nameValuePairs));
+        		Log.w("GYRO", "sending post");
     	        httpclient.execute(httppost);
+        		Log.w("GYRO", "finish post");
+    			GyroActivity.super.finish();
     	    } catch (Exception e) {
     	    	Log.e("Gyro", e.toString());
     	    }
